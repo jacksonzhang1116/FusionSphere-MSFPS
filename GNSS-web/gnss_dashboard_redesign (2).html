@@ -1,0 +1,1235 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GNSS 实时定位监测台</title>
+  <style>
+    :root{
+      --bg:#FFF8EC;
+      --bg-soft:#F5EFDF;
+      --card:#FFFAF1;
+      --card-strong:#F8F2E7;
+      --text:#33412B;
+      --text-strong:#25301F;
+      --muted:#6F7C61;
+      --line:rgba(84,107,65,.12);
+      --line-strong:rgba(84,107,65,.22);
+      --primary:#546B41;
+      --primary-2:#6E845A;
+      --accent:#99AD7A;
+      --accent-2:#B7C79D;
+      --sand:#DCCCAC;
+      --sand-deep:#CBB894;
+      --ok:#6E8B56;
+      --warn:#C39A52;
+      --bad:#C46E5C;
+      --info:#7B8F67;
+      --shadow-lg:0 20px 50px rgba(84,107,65,.12);
+      --shadow-md:0 12px 28px rgba(84,107,65,.10);
+      --radius-xl:28px;
+      --radius-lg:22px;
+      --radius-md:16px;
+      --radius-sm:12px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      color:var(--text);
+      font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background:
+        radial-gradient(900px 420px at 8% 8%, rgba(153,173,122,.16), transparent 58%),
+        radial-gradient(800px 520px at 92% 10%, rgba(220,204,172,.42), transparent 55%),
+        radial-gradient(920px 600px at 50% 100%, rgba(84,107,65,.09), transparent 58%),
+        linear-gradient(180deg, #FFF8EC 0%, #F7F1E5 56%, #F3EBDD 100%);
+      position:relative;
+      overflow-x:hidden;
+    }
+
+    body::before,
+    body::after{
+      content:"";
+      position:fixed;
+      inset:auto;
+      width:38vw;
+      height:38vw;
+      border-radius:50%;
+      filter:blur(70px);
+      pointer-events:none;
+      opacity:.38;
+      z-index:0;
+    }
+    body::before{
+      top:-12vw;
+      right:-8vw;
+      background:rgba(153,173,122,.22);
+    }
+    body::after{
+      left:-12vw;
+      bottom:-14vw;
+      background:rgba(220,204,172,.35);
+    }
+
+    .shell{
+      position:relative;
+      z-index:1;
+      min-height:100%;
+      padding:22px;
+      display:grid;
+      grid-template-columns:minmax(0,1.72fr) minmax(340px,.92fr);
+      gap:18px;
+    }
+
+    .glass,
+    .card{
+      position:relative;
+      background:linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,252,246,.92));
+      border:1px solid rgba(255,255,255,.58);
+      box-shadow:var(--shadow-lg);
+      border-radius:var(--radius-xl);
+      overflow:hidden;
+      backdrop-filter:blur(18px);
+      -webkit-backdrop-filter:blur(18px);
+    }
+
+    .glass::before,
+    .card::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(135deg, rgba(255,255,255,.32), transparent 36%, transparent 68%, rgba(153,173,122,.08));
+      pointer-events:none;
+    }
+
+    .mapPanel{
+      min-height:calc(100vh - 44px);
+      display:flex;
+      flex-direction:column;
+    }
+
+    .heroBar{
+      padding:18px 20px 16px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:14px;
+      background:linear-gradient(180deg, rgba(255,248,236,.66), rgba(255,255,255,.15));
+    }
+
+    .heroTitle{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .eyebrow{
+      display:inline-flex;
+      width:max-content;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(84,107,65,.12);
+      background:rgba(255,255,255,.5);
+      color:var(--primary);
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+    }
+    .eyebrow::before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:linear-gradient(180deg, var(--accent), var(--primary));
+      box-shadow:0 0 0 5px rgba(153,173,122,.15);
+    }
+    .heroTitle h1{
+      margin:0;
+      font-size:28px;
+      line-height:1.08;
+      letter-spacing:.02em;
+      color:var(--text-strong);
+      font-weight:800;
+    }
+    .heroTitle p{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.6;
+      max-width:640px;
+    }
+
+    .statusCluster{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:10px;
+      min-width:220px;
+    }
+
+    .statusPill{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 14px;
+      border-radius:999px;
+      background:rgba(255,255,255,.72);
+      border:1px solid rgba(84,107,65,.12);
+      box-shadow:0 8px 24px rgba(84,107,65,.08);
+      font-size:13px;
+      color:var(--primary);
+      font-weight:700;
+    }
+
+    .dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:var(--bad);
+      box-shadow:0 0 0 6px rgba(196,110,92,.12);
+      transition:.25s ease;
+    }
+    .dot.ok{
+      background:var(--ok);
+      box-shadow:0 0 0 6px rgba(110,139,86,.15);
+    }
+
+    .microStats{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+      width:100%;
+    }
+    .microCard{
+      padding:10px 12px;
+      border-radius:16px;
+      background:rgba(255,255,255,.56);
+      border:1px solid rgba(84,107,65,.10);
+    }
+    .microCard .label{
+      font-size:11px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .microCard .value{
+      font-size:14px;
+      color:var(--text-strong);
+      font-weight:800;
+    }
+
+    .mapStage{
+      position:relative;
+      flex:1;
+      min-height:70vh;
+      padding:14px;
+    }
+    .mapFrame{
+      position:relative;
+      height:100%;
+      min-height:70vh;
+      border-radius:24px;
+      overflow:hidden;
+      border:1px solid rgba(84,107,65,.12);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);
+      background:linear-gradient(180deg, rgba(84,107,65,.07), rgba(153,173,122,.08));
+    }
+    #map{
+      width:100%;
+      height:100%;
+      min-height:70vh;
+      filter:saturate(.88) contrast(1.02) sepia(.08) hue-rotate(-6deg);
+      background:linear-gradient(180deg, rgba(153,173,122,.10), rgba(84,107,65,.05));
+    }
+
+    .mapEmpty,
+    .mapLoading{
+      position:absolute;
+      inset:18px;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      z-index:3;
+      border-radius:20px;
+      background:rgba(255,250,241,.88);
+      border:1px solid rgba(84,107,65,.12);
+      box-shadow:var(--shadow-md);
+      padding:20px;
+    }
+    .mapEmpty.show,
+    .mapLoading.show{ display:flex; }
+    .emptyBox{
+      max-width:520px;
+    }
+    .emptyBox h3{
+      margin:0 0 10px;
+      font-size:18px;
+      color:var(--text-strong);
+    }
+    .emptyBox p{
+      margin:0;
+      font-size:13px;
+      line-height:1.75;
+      color:var(--muted);
+    }
+
+    .mapOverlay{
+      position:absolute;
+      inset:18px 18px auto auto;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      pointer-events:none;
+      z-index:2;
+    }
+    .overlayChip{
+      pointer-events:auto;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      background:rgba(255,250,241,.84);
+      border:1px solid rgba(84,107,65,.10);
+      border-radius:16px;
+      box-shadow:var(--shadow-md);
+    }
+    .overlayIndex{
+      width:38px;
+      height:38px;
+      border-radius:14px;
+      background:linear-gradient(180deg, rgba(153,173,122,.32), rgba(84,107,65,.18));
+      display:grid;
+      place-items:center;
+      color:var(--primary);
+      font-weight:800;
+      font-size:13px;
+    }
+    .overlayText .t1{
+      font-size:11px;
+      color:var(--muted);
+      margin-bottom:3px;
+    }
+    .overlayText .t2{
+      font-size:13px;
+      color:var(--text-strong);
+      font-weight:700;
+    }
+
+    .mapFooter{
+      display:grid;
+      grid-template-columns:1.15fr .85fr;
+      gap:12px;
+      padding:0 14px 14px;
+    }
+    .footerCard{
+      padding:14px 16px;
+      border-radius:18px;
+      background:rgba(255,255,255,.55);
+      border:1px solid rgba(84,107,65,.10);
+      box-shadow:var(--shadow-md);
+    }
+    .footerCard .cap{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      margin-bottom:8px;
+      font-weight:700;
+    }
+    .footerCard .content{
+      font-size:13px;
+      line-height:1.65;
+      color:var(--text);
+    }
+
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      letter-spacing:.02em;
+    }
+
+    .sidePanel{
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      min-height:calc(100vh - 44px);
+    }
+
+    .panelBlock{
+      padding:18px;
+    }
+    .blockHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:14px;
+    }
+    .blockHead h2{
+      margin:0;
+      font-size:15px;
+      color:var(--text-strong);
+      letter-spacing:.02em;
+    }
+    .blockHead span{
+      font-size:11px;
+      color:var(--muted);
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-weight:700;
+    }
+
+    .metricGrid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+    .metricCard{
+      position:relative;
+      overflow:hidden;
+      min-height:110px;
+      padding:14px;
+      border-radius:20px;
+      border:1px solid rgba(84,107,65,.12);
+      background:
+        radial-gradient(140px 80px at 100% 0%, rgba(153,173,122,.18), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,.76), rgba(247,241,231,.95));
+      box-shadow:0 14px 30px rgba(84,107,65,.07);
+    }
+    .metricCard::after{
+      content:"";
+      position:absolute;
+      right:-26px;
+      bottom:-26px;
+      width:88px;
+      height:88px;
+      border-radius:24px;
+      background:linear-gradient(180deg, rgba(153,173,122,.10), rgba(84,107,65,.08));
+      transform:rotate(24deg);
+    }
+    .metricTop{
+      position:relative;
+      z-index:1;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:14px;
+    }
+    .metricLabel{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.45;
+    }
+    .metricValue{
+      position:relative;
+      z-index:1;
+      font-size:21px;
+      font-weight:800;
+      color:var(--text-strong);
+      line-height:1.1;
+      word-break:break-all;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:52px;
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:800;
+      border:1px solid transparent;
+      white-space:nowrap;
+      background:rgba(84,107,65,.06);
+      color:var(--primary);
+    }
+    .badge.good{
+      color:#5F7E45;
+      background:rgba(110,139,86,.12);
+      border-color:rgba(110,139,86,.18);
+    }
+    .badge.warn{
+      color:#9D7435;
+      background:rgba(195,154,82,.12);
+      border-color:rgba(195,154,82,.18);
+    }
+    .badge.bad{
+      color:#A95E4F;
+      background:rgba(196,110,92,.12);
+      border-color:rgba(196,110,92,.18);
+    }
+
+    .controlsWrap,
+    .debugWrap{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:14px;
+    }
+    .btn{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      padding:14px 14px;
+      border-radius:18px;
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:.01em;
+      transition:transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+      color:var(--text-strong);
+      background:linear-gradient(180deg, rgba(255,255,255,.84), rgba(247,241,231,.96));
+      border:1px solid rgba(84,107,65,.12);
+      box-shadow:0 10px 22px rgba(84,107,65,.08);
+    }
+    .btn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 14px 28px rgba(84,107,65,.12);
+    }
+    .btn.primary{
+      color:#fff;
+      background:linear-gradient(180deg, var(--primary-2), var(--primary));
+      border-color:rgba(84,107,65,.28);
+      box-shadow:0 14px 30px rgba(84,107,65,.22);
+    }
+    .btn.subtle{
+      background:linear-gradient(180deg, rgba(153,173,122,.18), rgba(255,255,255,.88));
+    }
+    .btn.danger{
+      background:linear-gradient(180deg, rgba(220,204,172,.56), rgba(255,255,255,.92));
+    }
+
+    .tipsList{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .tipItem{
+      display:grid;
+      grid-template-columns:28px 1fr;
+      gap:12px;
+      padding:12px 0;
+      border-bottom:1px dashed rgba(84,107,65,.12);
+    }
+    .tipItem:last-child{ border-bottom:none; }
+    .tipIndex{
+      width:28px;
+      height:28px;
+      border-radius:10px;
+      display:grid;
+      place-items:center;
+      font-size:12px;
+      font-weight:800;
+      color:var(--primary);
+      background:rgba(153,173,122,.16);
+      border:1px solid rgba(84,107,65,.10);
+    }
+    .tipText{
+      font-size:13px;
+      color:var(--text);
+      line-height:1.75;
+    }
+
+    .legendStrip{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+      margin-top:14px;
+    }
+    .legendCard{
+      padding:12px;
+      border-radius:16px;
+      border:1px solid rgba(84,107,65,.10);
+      background:rgba(255,255,255,.62);
+    }
+    .legendCard .name{
+      font-size:11px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .legendCard .desc{
+      font-size:12px;
+      font-weight:800;
+      color:var(--text-strong);
+    }
+
+    .statusBar{
+      margin-top:14px;
+      padding:12px 14px;
+      border-radius:16px;
+      background:rgba(255,255,255,.62);
+      border:1px solid rgba(84,107,65,.10);
+      color:var(--text);
+      font-size:13px;
+      line-height:1.7;
+      min-height:48px;
+    }
+    .statusBar strong{ color:var(--text-strong); }
+
+    @media (max-width: 1180px){
+      .shell{ grid-template-columns:1fr; }
+      .mapPanel,
+      .sidePanel{ min-height:auto; }
+      .mapPanel{ min-height:72vh; }
+    }
+
+    @media (max-width: 760px){
+      .shell{ padding:14px; gap:14px; }
+      .heroBar{
+        flex-direction:column;
+        align-items:stretch;
+      }
+      .statusCluster{ align-items:stretch; min-width:0; }
+      .microStats,
+      .metricGrid,
+      .controlsWrap,
+      .debugWrap,
+      .mapFooter,
+      .legendStrip{ grid-template-columns:1fr; }
+      .heroTitle h1{ font-size:24px; }
+      .mapStage,
+      .mapFrame,
+      #map{ min-height:56vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="glass mapPanel">
+      <div class="heroBar">
+        <div class="heroTitle">
+          <div class="eyebrow">GNSS Telemetry Console</div>
+          <h1>GNSS 实时定位监测台</h1>
+          <p>商业化界面风格保留，同时增强了容错：百度地图脚本加载失败、WebSocket 未启动、JSON 数据异常时，页面不再直接抛出脚本错误，而是给出可见状态提示。</p>
+        </div>
+
+        <div class="statusCluster">
+          <div class="statusPill" title="WebSocket 数据状态">
+            <span id="connDot" class="dot"></span>
+            <span id="connText">初始化中</span>
+          </div>
+          <div class="microStats">
+            <div class="microCard">
+              <div class="label">坐标体系</div>
+              <div class="value mono">WGS84 → BD-09</div>
+            </div>
+            <div class="microCard">
+              <div class="label">最近更新</div>
+              <div class="value mono" id="lastSeen">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mapStage">
+        <div class="mapFrame">
+          <div id="map"></div>
+          <div id="mapLoading" class="mapLoading show">
+            <div class="emptyBox">
+              <h3>地图服务初始化中</h3>
+              <p>正在等待百度地图脚本回调。如果脚本未成功加载，页面会自动切换到提示状态，而不是中断整个前端。</p>
+            </div>
+          </div>
+          <div id="mapEmpty" class="mapEmpty">
+            <div class="emptyBox">
+              <h3>地图暂不可用</h3>
+              <p id="mapEmptyText">请检查百度地图脚本、AK 配置或当前网络环境。</p>
+            </div>
+          </div>
+          <div class="mapOverlay">
+            <div class="overlayChip">
+              <div class="overlayIndex">01</div>
+              <div class="overlayText">
+                <div class="t1">实时目标</div>
+                <div class="t2">当前位置 / 轨迹回放</div>
+              </div>
+            </div>
+            <div class="overlayChip">
+              <div class="overlayIndex">02</div>
+              <div class="overlayText">
+                <div class="t1">链路模式</div>
+                <div class="t2 mono">WebSocket Live Stream</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mapFooter">
+        <div class="footerCard">
+          <div class="cap">Position Parameters</div>
+          <div class="content">
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+              <div style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.62);border:1px solid rgba(84,107,65,.10);">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">定位模式</div>
+                <div class="mono" id="footerFixType" style="font-size:14px;font-weight:800;color:var(--text-strong);">-</div>
+              </div>
+              <div style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.62);border:1px solid rgba(84,107,65,.10);">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">水平精度</div>
+                <div class="mono" id="footerHdop" style="font-size:14px;font-weight:800;color:var(--text-strong);">-</div>
+              </div>
+              <div style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.62);border:1px solid rgba(84,107,65,.10);">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">垂向精度</div>
+                <div class="mono" id="footerVdop" style="font-size:14px;font-weight:800;color:var(--text-strong);">-</div>
+              </div>
+              <div style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.62);border:1px solid rgba(84,107,65,.10);">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">平均信噪比</div>
+                <div class="mono" id="footerSnr" style="font-size:14px;font-weight:800;color:var(--text-strong);">-</div>
+              </div>
+              <div style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.62);border:1px solid rgba(84,107,65,.10);">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">可见卫星</div>
+                <div class="mono" id="footerSv" style="font-size:14px;font-weight:800;color:var(--text-strong);">-</div>
+              </div>
+              <div style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.62);border:1px solid rgba(84,107,65,.10);">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">当前高程</div>
+                <div class="mono" id="footerAlt" style="font-size:14px;font-weight:800;color:var(--text-strong);">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footerCard">
+          <div class="cap">Live Coordinate</div>
+          <div class="content">
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">纬度</div>
+                <div class="mono" id="footerLat" style="font-size:14px;font-weight:800;color:var(--text-strong);word-break:break-all;">-</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">经度</div>
+                <div class="mono" id="footerLon" style="font-size:14px;font-weight:800;color:var(--text-strong);word-break:break-all;">-</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">时间戳</div>
+                <div class="mono" id="footerTime" style="font-size:14px;font-weight:800;color:var(--text-strong);">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidePanel">
+      <section class="card panelBlock">
+        <div class="blockHead">
+          <h2>定位状态矩阵</h2>
+          <span>Live Metrics</span>
+        </div>
+        <div class="metricGrid" id="metrics"></div>
+        <div class="controlsWrap">
+          <button class="btn primary" id="btnFollow">跟随模式：开启</button>
+          <button class="btn subtle" id="btnCenter">回到当前位置</button>
+          <button class="btn danger" id="btnClear">清空轨迹</button>
+          <button class="btn" type="button" id="btnReconnect">重连数据源</button>
+        </div>
+        <div class="debugWrap">
+          <button class="btn subtle" type="button" id="btnTestData1">注入测试数据 A</button>
+          <button class="btn subtle" type="button" id="btnTestData2">注入测试数据 B</button>
+        </div>
+        <div class="statusBar" id="statusBar">页面已加载，正在初始化地图与数据连接。</div>
+      </section>
+
+      <section class="card panelBlock">
+        <div class="blockHead">
+          <h2>链路解读</h2>
+          <span>Signal Notes</span>
+        </div>
+        <div class="tipsList">
+          <div class="tipItem">
+            <div class="tipIndex">1</div>
+            <div class="tipText">百度地图脚本是跨域资源，外部脚本报错时浏览器有时只会给出笼统的 <span class="mono">Script error</span>。这一版已经把高风险初始化步骤全部加了守卫。</div>
+          </div>
+          <div class="tipItem">
+            <div class="tipIndex">2</div>
+            <div class="tipText">如果 <span class="mono">ws://localhost:8080</span> 没有服务在监听，页面会显示“连接失败”而不是直接中断。你也可以点“注入测试数据”验证前端本身是否正常。</div>
+          </div>
+          <div class="tipItem">
+            <div class="tipIndex">3</div>
+            <div class="tipText">如果你的后端还有更多字段，例如 <span class="mono">speed</span>、<span class="mono">heading</span>、<span class="mono">rtk_age</span>、<span class="mono">baseline</span>，这版结构也能继续扩展。</div>
+          </div>
+        </div>
+        <div class="legendStrip">
+          <div class="legendCard">
+            <div class="name">定位模式</div>
+            <div class="desc">Single / Float / Fixed</div>
+          </div>
+          <div class="legendCard">
+            <div class="name">质量指标</div>
+            <div class="desc">SNR / DOP / SV</div>
+          </div>
+          <div class="legendCard">
+            <div class="name">核心坐标</div>
+            <div class="desc">Lat / Lon / Alt</div>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <script>
+    (function(){
+      'use strict';
+
+      const connDot  = document.getElementById('connDot');
+      const connText = document.getElementById('connText');
+      const lastSeen = document.getElementById('lastSeen');
+      const metrics  = document.getElementById('metrics');
+      const footerFixType = document.getElementById('footerFixType');
+      const footerHdop = document.getElementById('footerHdop');
+      const footerVdop = document.getElementById('footerVdop');
+      const footerSnr = document.getElementById('footerSnr');
+      const footerSv = document.getElementById('footerSv');
+      const footerAlt = document.getElementById('footerAlt');
+      const footerLat = document.getElementById('footerLat');
+      const footerLon = document.getElementById('footerLon');
+      const footerTime = document.getElementById('footerTime');
+      const mapEmpty = document.getElementById('mapEmpty');
+      const mapEmptyText = document.getElementById('mapEmptyText');
+      const mapLoading = document.getElementById('mapLoading');
+      const statusBar = document.getElementById('statusBar');
+      const btnFollow = document.getElementById('btnFollow');
+      const btnCenter = document.getElementById('btnCenter');
+      const btnClear = document.getElementById('btnClear');
+      const btnReconnect = document.getElementById('btnReconnect');
+      const btnTestData1 = document.getElementById('btnTestData1');
+      const btnTestData2 = document.getElementById('btnTestData2');
+
+      let follow = true;
+      let lastBdPt = null;
+      let map = null;
+      let marker = null;
+      let polyline = null;
+      let track = [];
+      let ws = null;
+      let reconnectTimer = null;
+      let mapInitTimedOut = false;
+      let lastTick = Date.now();
+
+      const WS_URL = 'ws://localhost:8080';
+      const MAP_TIMEOUT_MS = 7000;
+      const RECONNECT_MS = 3000;
+      const MAX_TRACK = 3000;
+
+      function fmt(x, digits = 2) {
+        if (x === null || x === undefined || Number.isNaN(x)) return '-';
+        if (typeof x === 'number') return x.toFixed(digits);
+        return String(x);
+      }
+
+      function safeText(el, value){
+        if (el) el.textContent = value;
+      }
+
+      function setStatus(message, level){
+        safeText(statusBar, message);
+        statusBar.style.borderColor = level === 'bad'
+          ? 'rgba(196,110,92,.18)'
+          : level === 'warn'
+            ? 'rgba(195,154,82,.18)'
+            : 'rgba(84,107,65,.10)';
+        statusBar.style.background = level === 'bad'
+          ? 'rgba(255,245,241,.95)'
+          : level === 'warn'
+            ? 'rgba(255,251,242,.95)'
+            : 'rgba(255,255,255,.62)';
+      }
+
+      function showMapEmpty(message){
+        mapLoading.classList.remove('show');
+        mapEmpty.classList.add('show');
+        safeText(mapEmptyText, message);
+      }
+
+      function hideMapEmpty(){
+        mapLoading.classList.remove('show');
+        mapEmpty.classList.remove('show');
+      }
+
+      function badgeForDop(x){
+        if (x === null || x === undefined || Number.isNaN(x)) return {t:'-', c:''};
+        if (x < 1.5) return {t:'优秀', c:'good'};
+        if (x < 3.0) return {t:'良好', c:'warn'};
+        return {t:'较差', c:'bad'};
+      }
+
+      function badgeForSnr(x){
+        if (x === null || x === undefined || Number.isNaN(x)) return {t:'-', c:''};
+        if (x >= 35) return {t:'很好', c:'good'};
+        if (x >= 28) return {t:'正常', c:'warn'};
+        return {t:'偏弱', c:'bad'};
+      }
+
+      function badgeForSv(x){
+        if (x === null || x === undefined || Number.isNaN(x)) return {t:'-', c:''};
+        if (x >= 15) return {t:'充足', c:'good'};
+        if (x >= 8)  return {t:'可用', c:'warn'};
+        return {t:'偏少', c:'bad'};
+      }
+
+      function metricCard(label, value, badge){
+        const b = badge ? `<span class="badge ${badge.c || ''}">${badge.t}</span>` : '';
+        return `
+          <div class="metricCard">
+            <div class="metricTop">
+              <div class="metricLabel">${label}</div>
+              ${b}
+            </div>
+            <div class="metricValue mono">${value}</div>
+          </div>
+        `;
+      }
+
+      function normalizeNumber(value){
+        return typeof value === 'number' ? value : Number(value);
+      }
+
+      function normalizePayload(input){
+        if (!input || typeof input !== 'object') return null;
+        const snr = input.snr && typeof input.snr === 'object' ? input.snr : {};
+        const dop = input.dop && typeof input.dop === 'object' ? input.dop : {};
+        const lat = normalizeNumber(input.lat);
+        const lon = normalizeNumber(input.lon);
+        const alt = normalizeNumber(input.alt);
+        const sv = normalizeNumber(input.sv);
+        const pdop = normalizeNumber(dop.pdop);
+        const hdop = normalizeNumber(dop.hdop);
+        const vdop = normalizeNumber(dop.vdop);
+        const avgSnr = normalizeNumber(snr.avg);
+
+        return {
+          raw: input,
+          lat: Number.isFinite(lat) ? lat : null,
+          lon: Number.isFinite(lon) ? lon : null,
+          alt: Number.isFinite(alt) ? alt : null,
+          sv: Number.isFinite(sv) ? sv : null,
+          fixType: input.fix || input.fixType || input.mode || input.status || '-',
+          snr: { avg: Number.isFinite(avgSnr) ? avgSnr : null },
+          dop: {
+            pdop: Number.isFinite(pdop) ? pdop : null,
+            hdop: Number.isFinite(hdop) ? hdop : null,
+            vdop: Number.isFinite(vdop) ? vdop : null
+          }
+        };
+      }
+
+      function render(payload){
+        const o = normalizePayload(payload);
+        if (!o) {
+          setStatus('收到的数据不是有效对象，已忽略该帧。', 'warn');
+          return;
+        }
+
+        metrics.innerHTML =
+          metricCard('纬度 Latitude', fmt(o.lat, 8)) +
+          metricCard('经度 Longitude', fmt(o.lon, 8)) +
+          metricCard('高程 Altitude(m)', fmt(o.alt, 2)) +
+          metricCard('卫星数 SV', fmt(o.sv, 0), badgeForSv(o.sv)) +
+          metricCard('SNR(avg)', fmt(o.snr.avg, 2), badgeForSnr(o.snr.avg)) +
+          metricCard('PDOP', fmt(o.dop.pdop, 2), badgeForDop(o.dop.pdop)) +
+          metricCard('HDOP', fmt(o.dop.hdop, 2), badgeForDop(o.dop.hdop)) +
+          metricCard('VDOP', fmt(o.dop.vdop, 2), badgeForDop(o.dop.vdop));
+
+        safeText(footerFixType, String(o.fixType));
+        safeText(footerHdop, fmt(o.dop.hdop, 2));
+        safeText(footerVdop, fmt(o.dop.vdop, 2));
+        safeText(footerSnr, fmt(o.snr.avg, 2));
+        safeText(footerSv, fmt(o.sv, 0));
+        safeText(footerAlt, o.alt === null ? '-' : `${fmt(o.alt, 2)} m`);
+        safeText(footerLat, fmt(o.lat, 8));
+        safeText(footerLon, fmt(o.lon, 8));
+        safeText(footerTime, new Date().toLocaleTimeString());
+        safeText(lastSeen, new Date().toLocaleTimeString());
+
+        if (o.lat !== null && o.lon !== null) {
+          updateMapPosition(o.lon, o.lat);
+        }
+      }
+
+      function setConnected(ok, text){
+        connDot.className = 'dot' + (ok ? ' ok' : '');
+        safeText(connText, text);
+      }
+
+      function initMetricsPlaceholder(){
+        render({
+          lat: null,
+          lon: null,
+          alt: null,
+          sv: null,
+          fixType: '-',
+          snr: { avg: null },
+          dop: { pdop: null, hdop: null, vdop: null }
+        });
+      }
+
+      function isBMapReady(){
+        return typeof window.BMap !== 'undefined' &&
+          typeof window.BMap.Map === 'function' &&
+          typeof window.BMap.Point === 'function';
+      }
+
+      function tryInitMap(){
+        if (!isBMapReady()) return false;
+
+        try {
+          map = new window.BMap.Map('map');
+          const initPt = new window.BMap.Point(120.9577, 31.4105);
+          map.centerAndZoom(initPt, 17);
+          map.enableScrollWheelZoom(true);
+
+          marker = new window.BMap.Marker(initPt);
+          map.addOverlay(marker);
+
+          polyline = new window.BMap.Polyline([], {
+            strokeColor: '#546B41',
+            strokeWeight: 5,
+            strokeOpacity: 0.88,
+            strokeStyle: 'solid'
+          });
+          map.addOverlay(polyline);
+
+          hideMapEmpty();
+          setStatus('地图服务已初始化。', 'ok');
+          return true;
+        } catch (err) {
+          console.error('Map init failed:', err);
+          showMapEmpty('百度地图初始化失败，请检查 AK、网络环境或浏览器控制台。');
+          setStatus('地图初始化失败，但页面其余部分仍可继续工作。', 'bad');
+          return false;
+        }
+      }
+
+      function updateMapPosition(lon, lat){
+        if (!map || !marker || !polyline) return;
+        if (!isBMapReady()) return;
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+
+        try {
+          const ggPoint = new window.BMap.Point(lon, lat);
+          const convertor = new window.BMap.Convertor();
+          convertor.translate([ggPoint], 1, 5, function(data){
+            try {
+              if (!data || data.status !== 0 || !data.points || data.points.length === 0) return;
+              const bdPt = data.points[0];
+              lastBdPt = bdPt;
+              marker.setPosition(bdPt);
+
+              const n = track.length;
+              if (n === 0) {
+                track.push(bdPt);
+              } else {
+                const last = track[n - 1];
+                const dx = Math.abs(last.lng - bdPt.lng);
+                const dy = Math.abs(last.lat - bdPt.lat);
+                if (dx + dy > 0.000002) {
+                  track.push(bdPt);
+                  if (track.length > MAX_TRACK) track.shift();
+                }
+              }
+              polyline.setPath(track);
+              if (follow) map.panTo(bdPt);
+            } catch (err) {
+              console.error('Map update failed:', err);
+            }
+          });
+        } catch (err) {
+          console.error('Coordinate conversion failed:', err);
+        }
+      }
+
+      function clearTrack(){
+        track = [];
+        if (polyline) polyline.setPath(track);
+        setStatus('轨迹已清空。', 'ok');
+      }
+
+      function scheduleReconnect(){
+        if (reconnectTimer) return;
+        reconnectTimer = window.setTimeout(function(){
+          reconnectTimer = null;
+          connectWebSocket();
+        }, RECONNECT_MS);
+      }
+
+      function closeWebSocket(){
+        if (!ws) return;
+        try {
+          ws.onopen = null;
+          ws.onclose = null;
+          ws.onerror = null;
+          ws.onmessage = null;
+          if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+            ws.close();
+          }
+        } catch (err) {
+          console.warn('WebSocket close warning:', err);
+        }
+        ws = null;
+      }
+
+      function connectWebSocket(){
+        closeWebSocket();
+
+        if (!('WebSocket' in window)) {
+          setConnected(false, '浏览器不支持');
+          setStatus('当前浏览器不支持 WebSocket。', 'bad');
+          return;
+        }
+
+        try {
+          ws = new WebSocket(WS_URL);
+        } catch (err) {
+          console.error('WebSocket ctor failed:', err);
+          setConnected(false, '连接失败');
+          setStatus(`无法创建 WebSocket 连接：${WS_URL}`, 'bad');
+          scheduleReconnect();
+          return;
+        }
+
+        setConnected(false, '连接中');
+        setStatus(`正在连接数据源 ${WS_URL} ...`, 'ok');
+
+        ws.onopen = function(){
+          setConnected(true, '已连接');
+          setStatus('WebSocket 连接成功，正在等待实时定位数据。', 'ok');
+        };
+
+        ws.onclose = function(){
+          setConnected(false, '已断开');
+          setStatus(`WebSocket 已断开，将在 ${RECONNECT_MS / 1000} 秒后自动重连。`, 'warn');
+          scheduleReconnect();
+        };
+
+        ws.onerror = function(err){
+          console.error('WebSocket error:', err);
+          setConnected(false, '连接错误');
+          setStatus('WebSocket 发生错误。若本地服务未启动，请先启动 8080 端口服务。', 'bad');
+        };
+
+        ws.onmessage = function(ev){
+          lastTick = Date.now();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(ev.data);
+          } catch (err) {
+            console.error('JSON parse failed:', err, ev.data);
+            setStatus('收到非 JSON 数据帧，已忽略该消息。', 'warn');
+            return;
+          }
+          render(parsed);
+        };
+      }
+
+      function injectTestData(payload){
+        render(payload);
+        setConnected(false, '测试模式');
+        setStatus('已注入本地测试数据，用于验证页面展示与地图更新逻辑。', 'ok');
+      }
+
+      function bindEvents(){
+        btnFollow.addEventListener('click', function(){
+          follow = !follow;
+          btnFollow.textContent = '跟随模式：' + (follow ? '开启' : '关闭');
+          setStatus(`跟随模式已${follow ? '开启' : '关闭'}。`, 'ok');
+        });
+
+        btnCenter.addEventListener('click', function(){
+          if (map && lastBdPt) {
+            try {
+              map.panTo(lastBdPt);
+              setStatus('地图已回到当前位置。', 'ok');
+            } catch (err) {
+              console.error('Pan failed:', err);
+              setStatus('地图回中失败。', 'warn');
+            }
+          } else {
+            setStatus('当前尚无有效位置，无法回中。', 'warn');
+          }
+        });
+
+        btnClear.addEventListener('click', clearTrack);
+        btnReconnect.addEventListener('click', function(){
+          setStatus('正在手动重连数据源。', 'ok');
+          connectWebSocket();
+        });
+
+        btnTestData1.addEventListener('click', function(){
+          injectTestData({
+            lat: 31.41051234,
+            lon: 120.95774567,
+            alt: 15.32,
+            sv: 18,
+            fixType: 'Fixed',
+            snr: { avg: 38.6 },
+            dop: { pdop: 1.12, hdop: 0.81, vdop: 1.48 }
+          });
+        });
+
+        btnTestData2.addEventListener('click', function(){
+          injectTestData({
+            lat: 31.41069876,
+            lon: 120.95810245,
+            alt: 16.07,
+            sv: 9,
+            mode: 'Float',
+            snr: { avg: 29.4 },
+            dop: { pdop: 2.41, hdop: 1.76, vdop: 2.88 }
+          });
+        });
+
+        window.addEventListener('error', function(event){
+          console.error('Window error:', event.error || event.message);
+          setStatus(`脚本异常已拦截：${event.message || '未知错误'}`, 'bad');
+        });
+      }
+
+      function startMapTimeoutGuard(){
+        window.setTimeout(function(){
+          if (!map && !mapInitTimedOut) {
+            mapInitTimedOut = true;
+            showMapEmpty('未在预期时间内收到百度地图回调。请检查网络、AK、浏览器拦截策略，或确认外部脚本是否成功加载。');
+            setStatus('百度地图脚本未成功完成初始化。页面保留运行，但地图不可用。', 'warn');
+          }
+        }, MAP_TIMEOUT_MS);
+      }
+
+      window.initMap = function(){
+        mapInitTimedOut = false;
+        tryInitMap();
+      };
+
+      function boot(){
+        initMetricsPlaceholder();
+        bindEvents();
+        startMapTimeoutGuard();
+
+        if (isBMapReady()) {
+          tryInitMap();
+        }
+
+        connectWebSocket();
+
+        window.setInterval(function(){
+          const dt = Date.now() - lastTick;
+          if (ws && ws.readyState === WebSocket.OPEN && dt > 3000) {
+            setConnected(false, '未更新');
+            setStatus('连接仍存在，但超过 3 秒未收到新数据。', 'warn');
+          }
+        }, 800);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+      } else {
+        boot();
+      }
+    })();
+  </script>
+
+  <script src="https://api.map.baidu.com/api?v=3.0&ak=Q0mBCLb2Ls8mYF28kaob5iRleRn4bzPP&callback=initMap"></script>
+</body>
+</html>
