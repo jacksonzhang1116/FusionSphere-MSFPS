@@ -1,3 +1,16 @@
+"""
+用于测试GNSS模块的卫星信号接收功,可处理GGA、GSA、GSV
+打印,UTC时间、经纬度、大地高、DOPs、SNR
+    print("---- GNSS SUMMARY ----")
+    print("UTC:", state["utc"], " FixQ:", state["fix_quality"])
+    print("Lat/Lon:", lat, lon)
+    print("Alt(m):", alt, " SV:", sv)
+    print("DOP: PDOP=", pdop, " HDOP=", hdop, " VDOP=", vdop)
+    print("SNR: count=", c, " avg=", avg, " min=", mn, " max=", mx)
+    print("----------------------")
+
+"""
+
 from machine import UART, FPIOA
 import time
 

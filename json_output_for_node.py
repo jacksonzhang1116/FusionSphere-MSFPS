@@ -1,3 +1,7 @@
+"""
+Python:用于烧录至K320mini的GNSS模块NMEA信息解算与JSON文件包的输出
+"""
+
 from machine import UART, FPIOA
 import time
 
